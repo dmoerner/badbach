@@ -3,6 +3,13 @@ import mingus.core.intervals as intervals
 from mingus.containers import Track, Composition, Note
 from mingus.midi import midi_file_out
 
+step_intervals = [
+    "major second",
+    "minor second",
+    "major seventh",
+    "minor seventh",
+]
+
 perfect_intervals = [
     "perfect fifth",
     "major unison",
@@ -40,6 +47,12 @@ def next_note(cpprev, mprev, mcur):
         # Rule 2: Parallel perfect intervals are forbidden.
         if intervals.determine(mprev.name, mcur.name) in perfect_intervals:
             weights[i] += weight_delta
+        # Rule 3: Direct fifths and octaves are forbidden, except when the soprano moves by step.
+        # Treat the melody as the soprano voice.
+        if intervals.determine(mprev.name, mcur.name) not in step_intervals:
+            fifth = intervals.perfect_fifth(cpprev.name)
+            if Note(fifth) in candidates:
+                weights[candidates.index(Note(fifth))] += weight_delta
 
     cpcur = random.choices(list(candidates), weights=weights)
 
