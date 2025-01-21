@@ -3,14 +3,19 @@ import mingus.core.intervals as intervals
 from mingus.containers import Track, Composition, Note
 from mingus.midi import midi_file_out
 
+perfect_intervals = [
+    "perfect fifth",
+    "major unison",
+]
+
 allowed_intervals = [
     "minor third",
     "major third",
-    "perfect fifth",
     "minor sixth",
     "major sixth",
-    "major unison",
-]
+] + perfect_intervals
+
+weight_delta = 10
 
 
 def next_note(cpprev, mprev, mcur):
@@ -23,31 +28,41 @@ def next_note(cpprev, mprev, mcur):
         Note("F"),
         Note("G"),
     ]
+    weights = [100 // len(candidates)] * len(candidates)
 
-    # Rule 1: No harmonic invervals are consonances.
-    candidates = filter(
-        lambda x: intervals.determine(cpprev.name, x.name) not in allowed_intervals,
-        candidates,
-    )
+    for i in range(len(candidates)):
+        # Rule 1: No harmonic invervals are consonances.
+        if (
+            intervals.determine(cpprev.name, candidates[i].name)
+            not in allowed_intervals
+        ):
+            weights[i] += weight_delta
+        # Rule 2: Parallel perfect intervals are forbidden.
+        if intervals.determine(mprev.name, mcur.name) in perfect_intervals:
+            weights[i] += weight_delta
 
-    cpcur = random.choice(list(candidates))
+    cpcur = random.choices(list(candidates), weights=weights)
 
     return cpcur
 
 
 def create_counterpoint(melody):
-    # A melody is made up of bars, and each note object is a list whose third element is the name.
+    # A melody is made up of bars, and each note object is a list whose third element is a list of names.
     cp = Track()
-    prev = melody[0][0][2]
+    prev = melody[0][0][2][0]
     cp.add_notes(prev)
     for bar_i in range(len(melody)):
         for note_i in range(len(melody[bar_i])):
             if bar_i == 0 and note_i == 0:
                 continue
             cp.add_notes(
-                next_note(Note(cp[-1][-1][2][0]), prev, melody[bar_i][note_i][2])
+                next_note(
+                    Note(cp[-1][-1][2][0]),
+                    Note(prev),
+                    Note(melody[bar_i][note_i][2][0]),
+                )
             )
-            prev = melody[bar_i][note_i][2]
+            prev = melody[bar_i][note_i][2][0]
 
     return cp
 
